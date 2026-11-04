@@ -1,0 +1,18 @@
+# Roms and files generated from them
+*.zip
+/*/tools/unzip/
+/*/tools/tools_prom_src/bin/
+/*/proms/*.vhd
+/*/proms/.done
+
+# Vivado outputs
+/*/basys3/*.cache/
+/*/basys3/*.gen/
+/*/basys3/*.hw/
+/*/basys3/*.ip_user_files/
+/*/basys3/*.runs/
+/*/basys3/*.sim/
+.Xil/
+*.jou
+*.log
+*.str
