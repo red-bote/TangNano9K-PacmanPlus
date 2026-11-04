@@ -20,6 +20,7 @@ port (
 	data_a_o : out std_logic_vector(data_width_g-1 downto 0);
 
 	clk_b_i  : in  std_logic;
+	en_b_i   : in  std_logic := '1'; -- read enable (RAMB16 ENB of the original design)
 	addr_b_i : in  std_logic_vector(addr_width_g-1 downto 0);
 	data_b_o : out std_logic_vector(data_width_g-1 downto 0)
 );
@@ -52,7 +53,9 @@ begin
   mem_b: process (clk_b_i)
   begin
     if rising_edge(clk_b_i) then
+      if en_b_i = '1' then
 		data_b_o <= ram_q(to_integer(unsigned(addr_b_i)));
+      end if;
     end if;
   end process mem_b;
 

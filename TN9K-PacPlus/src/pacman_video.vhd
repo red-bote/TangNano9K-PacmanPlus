@@ -374,6 +374,7 @@ begin
 		data_a_i  => sprite_ram_ip,
 
 		clk_b_i   => CLK,
+		en_b_i    => ENA_6, -- read on the pixel enable, as the original RAMB16 (ENB)
 		addr_b_i  => sprite_ram_addr,
 		data_b_o  => sprite_ram_op
 	);
