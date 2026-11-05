@@ -7,6 +7,11 @@
 set_property -dict { PACKAGE_PIN W5   IOSTANDARD LVCMOS33 } [get_ports clk]
 create_clock -add -name sys_clk_pin -period 10.00 -waveform {0 5} [get_ports clk]
 
+## System and VGA clocks: data crosses only through the scandoubler_vga line buffer and
+## a 2-FF synchronizer.
+set_clock_groups -asynchronous -group [get_clocks clk_out1_clk_wiz_0] \
+    -group [get_clocks clk_out2_clk_wiz_0]
+
 
 ## Switches
 set_property -dict { PACKAGE_PIN V17   IOSTANDARD LVCMOS33 } [get_ports {sw[0]}]

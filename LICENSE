@@ -8,6 +8,8 @@ It does not cover:
   in its file header), T80 and the MiST scandoubler
 - content of the Basys 3 wrapper taken from the upstream board top
 - third-party code added for the port: Xilinx Clocking Wizard, make_vhdl_prom.c
+- `scandoubler_vga.v`, a modified copy of the MiST scandoubler (Till Harbaum): GPL-3.0
+  or later, including the Basys 3 changes
 
 These keep the terms stated in their files.
 

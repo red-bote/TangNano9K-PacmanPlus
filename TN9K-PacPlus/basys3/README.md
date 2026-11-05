@@ -8,7 +8,7 @@ Basys 3 (Artix-7 `xc7a35tcpg236-1`).
 ## Hardware
 
 - Digilent Basys 3.
-- VGA monitor (31 kHz), or a 15 kHz TV/CRT (sw13, not tested).
+- VGA monitor (640x480, 31 kHz), or a 15 kHz TV/CRT (sw13, not tested).
 - USB keyboard on the Basys 3 USB-HID host port.
 - Optional: Atari-style joystick on Pmod JA, Digilent PmodAMP2 on Pmod JXADC.
 
@@ -43,6 +43,7 @@ make clean       # remove roms, PROM VHDL and Vivado outputs
 | btnC            | reset                                         |
 | JA 1/2/3/4      | joystick right/left/down/up (active low)      |
 | sw0-sw7         | DIP switches (down = default, see below)      |
+| sw12 up         | service mode (self-test, test screens)        |
 | sw13 down       | 31 kHz VGA                                    |
 | sw13 up         | 15 kHz TV, composite sync on HS (not tested)  |
 | sw14 up         | scanlines, alternate lines at 50 %, 31 kHz    |
@@ -60,27 +61,31 @@ DIP switches (switch up inverts the default bit):
 
 Ghost names up: alternate names ("AAAAAAAA", "BBBBBBBB", ...).
 
-## Resource use
+## Clock
 
-From a Vivado 2020.2 build:
-
-| Resource  | Used       | Util.                          |
-|-----------|------------|--------------------------------|
-| LUTs      | 1519       | 7.30%                          |
-| Registers | 601        | 1.44%                          |
-| Block RAM | 8.5 tiles  | 17.00%                         |
-| DSPs      | 0          | 0.00%                          |
-| Clock     | 24.576 MHz | WNS +24.452 ns, WHS +0.104 ns  |
-
-The core runs on the one 24.576 MHz clock (6.144 MHz pixel rate as the original board)
+The core runs on one 24.571 MHz clock (6.143 MHz pixel rate, original board 6.144 MHz)
 with clock enables.
+
+## VGA
+
+The VGA output uses standard 640x480 timing (32.0 kHz, 60.6 Hz).
+
+- The scan doubler in the core outputs 384 clocks per line. LCD monitors detect
+  640x480, which has 800, so they sample the picture at the wrong points: it needs auto
+  adjust and loses its edge columns, or does not sync at all. It is not used here.
+- `scandoubler_vga.v` is a modified copy of that scan doubler. The core file stays
+  unchanged for the Tang Nano 9K build. It outputs 800 clocks per line on a second MMCM
+  clock, 25.595 MHz, exactly 25/24 of the system clock, so the picture stays locked to
+  the core.
+- Each pixel and each line is shown twice: the picture is 576 x 448, centred.
 
 ## Core changes for the Basys 3 port
 
 Changes to the core files in `src/` (shared with the Tang Nano 9K project):
 
-- DIP switch input, native video outputs and scanlines input of `pacman` for the Basys 3
-  top (`pacman.vhd`). Unconnected in the Tang Nano 9K top, defaults keep its settings.
+- DIP switch input, native video and timing outputs and scanlines input of `pacman` for
+  the Basys 3 top (`pacman.vhd`). Unconnected in the Tang Nano 9K top, defaults keep its
+  settings.
 - Vivado elaboration error: palette PROM address connected in full
   (`pacman_video.vhd`).
 - Vivado synthesis error: scan doubler `scanlines` input through a signal
@@ -98,10 +103,19 @@ PROM tool, unmodified, from <https://github.com/pinballwizz/DE2-Xevious> (commit
 |---------------------------------------------|----------------------------|---------|
 | `tools/tools_prom_src/src/make_vhdl_prom.c` | PROM-to-VHDL converter     | darfpga |
 
+VGA output, a modified copy of the MiST scan doubler `src/scandoubler_new.v` of the core
+(in `basys3/pacplus_basys3.srcs/sources_1/new/`, changes listed in its header):
+
+| File                | Function                   | Author       |
+|---------------------|----------------------------|--------------|
+| `scandoubler_vga.v` | 640x480 VGA scan doubler   | Till Harbaum |
+
 ## License
 
 - The additions and changes made for the Basys 3 port are MIT licensed.
 - Core files (`src/pacman*.vhd`): (c) MikeJ, ROM descrambler
   (`src/pacman_rom_descrambler.vhd`) (c) d18c7db, terms as stated in their headers.
   Other code keeps the terms stated in its files. `make_vhdl_prom.c` states no license.
+- `scandoubler_vga.v`: GPL-3.0 or later, like the MiST scan doubler it is copied from.
+  This includes the Basys 3 changes.
 - Roms and anything generated from them (PROM VHDL, bitstreams) are not distributed.

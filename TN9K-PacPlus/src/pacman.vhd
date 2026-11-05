@@ -84,7 +84,12 @@ entity PACMAN is
     -- DIP switches (0x5080), default 3 lives, bonus at 10000, 1 coin 1 credit
     I_DIP_SW           : in  std_logic_vector(7 downto 0) := "11001001";
     -- scandoubler scanlines: 00 off, 01 25 %, 10 50 %, 11 75 %
-    I_SCANLINES        : in  std_logic_vector(1 downto 0) := "00"
+    I_SCANLINES        : in  std_logic_vector(1 downto 0) := "00";
+    -- native sync (15 kHz, active high) of O_R, O_G, O_B for an external scan converter
+    O_HSYNC_NAT        : out std_logic;
+    O_VSYNC_NAT        : out std_logic;
+    -- service mode switch (IN1 bit 4), active low: self-test and test screens
+    I_TEST_L           : in  std_logic := '1'
     );
 end;
 ----------------------------------------------------------------
@@ -701,6 +706,8 @@ begin
       O_B           <= video_b;
       O_COMP_SYNC_L <= comp_sync_l;
       scanlines     <= I_SCANLINES;
+      O_HSYNC_NAT   <= hsync;
+      O_VSYNC_NAT   <= vsync;
 -------------------------------------------------------------------------
   u_audio : entity work.PACMAN_AUDIO
     port map (
@@ -749,7 +756,7 @@ begin
       in1_reg(7) <= '1';                     -- ? Table 1=Up / 0=Coskctail
       in1_reg(6) <= not I_2P_START; -- button_debounced(7); 	-- start2 y fire p2
       in1_reg(5) <= not I_1P_START; --button_debounced(6); 		-- start1 y fire p1
-      in1_reg(4) <= '1';    						-- Board Test
+      in1_reg(4) <= I_TEST_L;    						-- Board Test
       in1_reg(3) <= not SW_DOWN; --button_debounced(10);		-- p2 down
       in1_reg(2) <= not SW_RIGHT; --button_debounced(12); 	-- p2 right
       in1_reg(1) <= not SW_LEFT; --button_debounced(11); 	-- p2 left

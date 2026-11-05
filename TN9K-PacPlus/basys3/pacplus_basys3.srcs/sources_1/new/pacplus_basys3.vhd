@@ -18,7 +18,7 @@
 --
 -- Main features:
 --  Connections:
---   VGA monitor, 31 kHz (scandoubler). 15 kHz RGB with sw13 up (not tested)
+--   VGA monitor, 640x480 at 31 kHz. 15 kHz RGB with sw13 up (not tested)
 --   USB keyboard on the USB-HID host connector (MAME default keys)
 --   Atari-type joystick on Pmod JA, pins 1/2/3/4 = right/left/down/up
 --   PmodAMP2 with speaker on Pmod JXADC, pins 1/2/4
@@ -27,10 +27,11 @@
 --   coin          5                             btnU, btnD
 --   start1/2      1, 2                          btnL, btnR
 --   reset                                       btnC
---  Switches: sw15 audio off, sw14 scanlines, sw13 15 kHz RGB, sw0-sw7 DIP
+--  Switches: sw15 audio off, sw14 scanlines, sw13 15 kHz RGB, sw12 test mode,
+--   sw0-sw7 DIP
 --  DIP bits: coinage 1:0, lives 3:2, bonus 5:4, difficulty 6, ghost names 7,
 --   switch down = default
---  Clock: 1 MMCM, 24.576 MHz from 100 MHz, single clock domain
+--  Clock: 1 MMCM from 100 MHz, 24.571 MHz system, 25.595 MHz VGA output (25:24)
 --
 -- DIP values and other details: see basys3/README.md
 ---------------------------------------------------------------------------------
@@ -66,19 +67,30 @@ end pacplus_basys3;
 architecture struct of pacplus_basys3 is
 
     signal clk_sys         : std_logic;
+    signal clk_vid         : std_logic;
     signal locked          : std_logic;
     signal mmcm_reset      : std_logic := '0';
     --
-    signal video_r         : std_logic_vector(3 downto 0);
-    signal video_g         : std_logic_vector(3 downto 0);
-    signal video_b         : std_logic_vector(3 downto 0);
-    signal h_sync          : std_logic;
-    signal v_sync          : std_logic;
     --
     signal native_r        : std_logic_vector(2 downto 0);
     signal native_g        : std_logic_vector(2 downto 0);
     signal native_b        : std_logic_vector(1 downto 0);
     signal native_csync_l  : std_logic;
+    signal native_hs       : std_logic;
+    signal native_vs       : std_logic;
+    --
+    signal sd_r_in         : std_logic_vector(5 downto 0);
+    signal sd_g_in         : std_logic_vector(5 downto 0);
+    signal sd_b_in         : std_logic_vector(5 downto 0);
+    signal vga640_r        : std_logic_vector(5 downto 0);
+    signal vga640_g        : std_logic_vector(5 downto 0);
+    signal vga640_b        : std_logic_vector(5 downto 0);
+    signal vga640_hs       : std_logic;
+    signal vga640_vs       : std_logic;
+    signal tv_r            : std_logic_vector(3 downto 0);
+    signal tv_g            : std_logic_vector(3 downto 0);
+    signal tv_b            : std_logic_vector(3 downto 0);
+    signal tv_csync_l      : std_logic;
     --
     signal audio           : std_logic;
     --
@@ -114,12 +126,14 @@ begin
     reset <= btnC or (not locked);
 
 ---------------------------------------------------------------------------
-    -- Clock: MMCM 24.576 MHz from the 100 MHz board clock
+    -- Clock: MMCM from the 100 MHz board clock. 24.571 MHz system clock, 25.595 MHz VGA
+    -- clock (25/24 of the system clock, same VCO)
     clk_wiz_0 : entity work.clk_wiz_0
     port map (
         reset    => mmcm_reset,
         clk_in1  => clk,
         clk_out1 => clk_sys,
+        clk_out2 => clk_vid,
         locked   => locked
     );
 
@@ -135,11 +149,11 @@ begin
     port map (
         CLK_24MHz     => clk_sys,
         I_RESET       => reset,
-        O_VIDEO_R     => video_r,
-        O_VIDEO_G     => video_g,
-        O_VIDEO_B     => video_b,
-        O_HSYNC       => h_sync,
-        O_VSYNC       => v_sync,
+        O_VIDEO_R     => open,
+        O_VIDEO_G     => open,
+        O_VIDEO_B     => open,
+        O_HSYNC       => open,
+        O_VSYNC       => open,
         O_AUDIO_L     => audio,
         O_AUDIO_R     => open,
         SW_LEFT       => joy_BBBBFRLDU(2),
@@ -155,31 +169,54 @@ begin
         O_B           => native_b,
         O_COMP_SYNC_L => native_csync_l,
         I_DIP_SW      => dip_sw,
-        I_SCANLINES   => scanlines
+        I_SCANLINES   => scanlines,
+        O_HSYNC_NAT   => native_hs,
+        O_VSYNC_NAT   => native_vs,
+        I_TEST_L      => not sw(12) -- sw12 up: service mode (test screens)
     );
 
 -----------------------------------------------------------------
     -- vga outputs
 
-    -- sw13 down: 31 kHz VGA (scandoubler), up: 15 kHz TV with composite sync on HS
+    -- VGA output: standard 640x480 timing on the VGA clock
+    sd_r_in <= native_r & native_r;
+    sd_g_in <= native_g & native_g;
+    sd_b_in <= native_b & native_b & native_b;
+
+    vga640 : entity work.scandoubler_vga
+    port map (
+        clk_sys   => clk_sys,
+        clk_vid   => clk_vid,
+        scanlines => scanlines,
+        hs_in     => native_hs,
+        vs_in     => native_vs,
+        r_in      => sd_r_in,
+        g_in      => sd_g_in,
+        b_in      => sd_b_in,
+        hs_out    => vga640_hs,
+        vs_out    => vga640_vs,
+        r_out     => vga640_r,
+        g_out     => vga640_g,
+        b_out     => vga640_b
+    );
+
+    -- sw13 up: 15 kHz TV with composite sync on HS
     process(clk_sys)
     begin
         if rising_edge(clk_sys) then
-            if sw(13) = '0' then
-                vga_r <= video_r;
-                vga_g <= video_g;
-                vga_b <= video_b;
-                hsync <= h_sync;
-                vsync <= v_sync;
-            else
-                vga_r <= native_r & native_r(2);
-                vga_g <= native_g & native_g(2);
-                vga_b <= native_b & native_b;
-                hsync <= native_csync_l;
-                vsync <= '1';
-            end if;
+            tv_r       <= native_r & native_r(2);
+            tv_g       <= native_g & native_g(2);
+            tv_b       <= native_b & native_b;
+            tv_csync_l <= native_csync_l;
         end if;
     end process;
+
+    -- switches are static: the output select is not synchronized
+    vga_r <= vga640_r(5 downto 2) when sw(13) = '0' else tv_r;
+    vga_g <= vga640_g(5 downto 2) when sw(13) = '0' else tv_g;
+    vga_b <= vga640_b(5 downto 2) when sw(13) = '0' else tv_b;
+    hsync <= vga640_hs when sw(13) = '0' else tv_csync_l;
+    vsync <= vga640_vs when sw(13) = '0' else '1';
 
 -----------------------------------------------------------------
     -- sound: 1-bit DAC output of the core to the PmodAMP2
