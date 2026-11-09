@@ -3,10 +3,9 @@
 # make_pacplus_proms.bat):
 #   1. compile make_vhdl_prom into tools_prom_src/bin/
 #   2. unzip ROMZIP (comma-separated) or ${ROMDIR:-~/roms}/pacplus.zip into unzip/
-#   3. write the PROM VHDL and the stamp .done into ../proms/
+#   3. write the PROM VHDL into ../proms/
+#   4. create ../proms/.done, a marker file the Makefile checks before a bitstream build
 # The program ROMs stay encrypted, the core decrypts them (pacman_rom_descrambler.vhd).
-# make_vhdl_prom names the entity after the output file, so it writes into unzip/ and
-# the result is moved.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -49,6 +48,6 @@ prom 82s126.1m PROM1_DST.vhd
 prom pacplus.4a PROM4_DST.vhd
 prom pacplus.7f PROM7_DST.vhd
 
-touch "$PROM_DIR/.done"   # stamp for the Makefile bitstream prerequisite
+touch "$PROM_DIR/.done"
 echo "PROM VHDL in $PROM_DIR:"
 ls -1 "$PROM_DIR"
