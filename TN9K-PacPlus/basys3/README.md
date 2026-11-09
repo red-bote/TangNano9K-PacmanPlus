@@ -1,13 +1,12 @@
 # Pac-Man Plus - Digilent Basys 3
 
-Pac-Man Plus (© 1982 Namco Ltd., Midway license), FPGA core by MikeJ
-(www.fpgaarcade.com), ROM descrambler by d18c7db, Tang Nano 9K port by pinballwiz.org
-(<https://github.com/pinballwizz/TangNano9K-PacmanPlus>), built here for the Digilent
-Basys 3 (Artix-7 `xc7a35tcpg236-1`).
+Pac-Man Plus (1982 Midway), FPGA core by MikeJ (www.fpgaarcade.com), ROM descrambler by
+d18c7db, based on Tang Nano 9K port by pinballwiz.org
+(<https://github.com/pinballwizz/TangNano9K-PacmanPlus>).
 
 ## Hardware
 
-- Digilent Basys 3.
+- Digilent Basys 3 (Artix-7 `xc7a35tcpg236-1`).
 - VGA monitor (640x480, 31 kHz), or a 15 kHz TV/CRT (sw13, not tested).
 - USB keyboard on the Basys 3 USB-HID host port.
 - Optional: Atari-style joystick on Pmod JA, Digilent PmodAMP2 on Pmod JXADC.
@@ -17,14 +16,13 @@ Basys 3 (Artix-7 `xc7a35tcpg236-1`).
 Requirements:
 
 - Vivado 2020.2, gcc, make, unzip, openFPGALoader.
-- Romset `pacplus.zip`, supplied by the user. Roms are not part of this repository.
-  The program ROMs stay encrypted, the core decrypts them
+- Romset `pacplus.zip`. The program ROMs stay encrypted, the core decrypts them
   (`src/pacman_rom_descrambler.vhd`).
 
 ```
 make roms        # compile make_vhdl_prom, unzip ~/roms/pacplus.zip, generate PROM VHDL
 make bitstream   # Vivado batch build of basys3/pacplus_basys3.xpr
-make load        # program the Basys 3 (SRAM), building first if the bitstream is outdated
+make load        # program the xc7 in JTAG mode (jumper JP1 in the JTAG position)
 make clean       # remove roms, PROM VHDL and Vivado outputs
 ```
 
@@ -68,24 +66,17 @@ with clock enables.
 
 ## VGA
 
-The VGA output uses standard 640x480 timing (32.0 kHz, 60.6 Hz).
-
-- The scan doubler in the core outputs 384 clocks per line. LCD monitors detect
-  640x480, which has 800, so they sample the picture at the wrong points: it needs auto
-  adjust and loses its edge columns, or does not sync at all. It is not used here.
-- `scandoubler_vga.v` is a modified copy of that scan doubler. The core file stays
-  unchanged for the Tang Nano 9K build. It outputs 800 clocks per line on a second MMCM
-  clock, 25.595 MHz, exactly 25/24 of the system clock, so the picture stays locked to
-  the core.
-- Each pixel and each line is shown twice: the picture is 576 x 448, centred.
+The VGA output uses standard 640x480 timing (32.0 kHz, 60.6 Hz) from `scandoubler_vga.v`,
+a modified copy of the core scan doubler on a second MMCM clock (25.595 MHz, 25/24 of the
+system clock). The core scan doubler outputs 384 clocks per line, which LCD monitors
+sample incorrectly at 640x480.
 
 ## Core changes for the Basys 3 port
 
 Changes to the core files in `src/` (shared with the Tang Nano 9K project):
 
 - DIP switch input, native video and timing outputs and scanlines input of `pacman` for
-  the Basys 3 top (`pacman.vhd`). Unconnected in the Tang Nano 9K top, defaults keep its
-  settings.
+  the Basys 3 top (`pacman.vhd`).
 - Vivado elaboration error: palette PROM address connected in full
   (`pacman_video.vhd`).
 - Vivado synthesis error: scan doubler `scanlines` input through a signal
@@ -96,19 +87,11 @@ Changes to the core files in `src/` (shared with the Tang Nano 9K project):
 
 ## Third-party additions
 
-PROM tool, unmodified, from <https://github.com/pinballwizz/DE2-Xevious> (commit
-`a5d9eed`):
-
-| File                                        | Function                   | Author  |
-|---------------------------------------------|----------------------------|---------|
-| `tools/tools_prom_src/src/make_vhdl_prom.c` | PROM-to-VHDL converter     | darfpga |
-
-VGA output, a modified copy of the MiST scan doubler `src/scandoubler_new.v` of the core
-(in `basys3/pacplus_basys3.srcs/sources_1/new/`, changes listed in its header):
-
-| File                | Function                   | Author       |
-|---------------------|----------------------------|--------------|
-| `scandoubler_vga.v` | 640x480 VGA scan doubler   | Till Harbaum |
+- `tools/tools_prom_src/src/make_vhdl_prom.c` (darfpga): PROM-to-VHDL converter,
+  unmodified, from <https://github.com/pinballwizz/DE2-Xevious>.
+- `basys3/pacplus_basys3.srcs/sources_1/new/scandoubler_vga.v` (Till Harbaum): 640x480 VGA
+  scan doubler, a modified copy of the MiST scan doubler `src/scandoubler_new.v` of the
+  core, changes listed in its header.
 
 ## License
 
